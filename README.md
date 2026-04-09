@@ -1,0 +1,28 @@
+"# Staff Management System" 
+"" 
+"A comprehensive staff management system with signature background removal capability." 
+"" 
+"## Features" 
+"- Staff registration with photo and signature capture" 
+"- Admin approval workflow with username/password assignment" 
+"- Signature background removal (preserves ink quality)" 
+"- Bulk background removal with stop functionality" 
+"- Download signatures individually or as ZIP" 
+"- Camera capture for photos and signatures" 
+"- Circular profile photos" 
+"- Search and filter functionality" 
+"- Excel database for easy data management" 
+"" 
+"## Installation" 
+'```bash' 
+"pip install -r Requirements.txt" 
+'```' 
+"" 
+"## Usage" 
+'```bash' 
+"streamlit run app.py" 
+'```' 
+"" 
+"## Default Admin Login" 
+"- Username: admin" 
+"- Password: admin123" 
