@@ -330,6 +330,8 @@ def signature_remover_app():
         st.session_state.sig_remover_captured_image = None
     if 'sig_remover_show_camera' not in st.session_state:
         st.session_state.sig_remover_show_camera = False
+    if 'confirm_admin_delete' not in st.session_state:
+        st.session_state.confirm_admin_delete = None
     
     # Create output folder
     OUTPUT_FOLDER = "processed_signatures"
@@ -779,23 +781,41 @@ def init_excel_files():
         safe_write_excel(staff_df, STAFF_EXCEL_FILE)
     
     if not os.path.exists(ADMIN_EXCEL_FILE):
-        admin_df = pd.DataFrame(columns=['id', 'username', 'password', 'email', 'full_name'])
+        admin_df = pd.DataFrame(columns=['id', 'username', 'password', 'email', 'full_name', 'role'])
         safe_write_excel(admin_df, ADMIN_EXCEL_FILE)
-        add_default_admin()
+        add_default_admins()
 
-def add_default_admin():
+def add_default_admins():
+    """Add default admin and super admin users"""
     admin_df = safe_read_excel(ADMIN_EXCEL_FILE)
+    
     if admin_df.empty:
-        hashed_password = hash_password("admin123")
-        new_admin = pd.DataFrame([{
+        # Add Super Admin
+        super_admin_password = hash_password("superadmin123")
+        super_admin = pd.DataFrame([{
             'id': 1,
-            'username': 'admin',
-            'password': hashed_password,
-            'email': 'admin@system.com',
-            'full_name': 'Super Administrator'
+            'username': 'superadmin',
+            'password': super_admin_password,
+            'email': 'superadmin@system.com',
+            'full_name': 'Super Administrator',
+            'role': 'super_admin'
         }])
-        admin_df = pd.concat([admin_df, new_admin], ignore_index=True)
+        
+        # Add Regular Admin
+        admin_password = hash_password("admin123")
+        regular_admin = pd.DataFrame([{
+            'id': 2,
+            'username': 'admin',
+            'password': admin_password,
+            'email': 'admin@system.com',
+            'full_name': 'System Administrator',
+            'role': 'admin'
+        }])
+        
+        admin_df = pd.concat([super_admin, regular_admin], ignore_index=True)
         safe_write_excel(admin_df, ADMIN_EXCEL_FILE)
+        
+        st.info("Default users created: superadmin/superadmin123 and admin/admin123")
 
 def clean_database():
     """Remove empty/invalid rows from the database"""
@@ -822,6 +842,8 @@ if 'user_id' not in st.session_state:
     st.session_state.user_id = None
 if 'user_name' not in st.session_state:
     st.session_state.user_name = None
+if 'user_role' not in st.session_state:
+    st.session_state.user_role = None
 if 'form_key' not in st.session_state:
     st.session_state.form_key = 0
 
@@ -1173,15 +1195,7 @@ def admin_login():
     st.subheader("Admin Login")
     
     if not os.path.exists(ADMIN_EXCEL_FILE) or safe_read_excel(ADMIN_EXCEL_FILE).empty:
-        hashed_password = hash_password("admin123")
-        admin_df = pd.DataFrame([{
-            'id': 1,
-            'username': 'admin',
-            'password': hashed_password,
-            'email': 'admin@system.com',
-            'full_name': 'Super Administrator'
-        }])
-        safe_write_excel(admin_df, ADMIN_EXCEL_FILE)
+        add_default_admins()
     
     with st.form("admin_login_form"):
         username = st.text_input("Username")
@@ -1194,11 +1208,147 @@ def admin_login():
             if not admin.empty and verify_password(password, admin.iloc[0]['password']):
                 st.session_state.logged_in = True
                 st.session_state.user_type = "admin"
+                st.session_state.user_id = admin.iloc[0]['id']
                 st.session_state.user_name = admin.iloc[0]['full_name']
+                st.session_state.user_role = admin.iloc[0]['role']
+                st.success(f"Welcome {admin.iloc[0]['full_name']} ({admin.iloc[0]['role']})!")
                 st.rerun()
             else:
-                st.error("Invalid credentials! Use admin/admin123")
+                st.error("Invalid credentials! Use admin/admin123 or superadmin/superadmin123")
 
+# ==================== PASSWORD MANAGER (Method 5) ====================
+
+def admin_password_manager():
+    """Admin password management page - Only accessible to Super Admin"""
+    st.title("🔐 Admin Password Manager")
+    
+    # Check if user is super admin
+    if 'user_role' not in st.session_state or st.session_state.user_role != 'super_admin':
+        st.error("⚠️ Only Super Admin can access this page!")
+        st.info("You need Super Admin privileges to manage admin passwords.")
+        return
+    
+    st.success("👑 You are logged in as Super Administrator")
+    st.markdown("Here you can manage all admin user passwords and delete admin accounts.")
+    
+    admin_df = safe_read_excel(ADMIN_EXCEL_FILE)
+    
+    if admin_df.empty:
+        st.warning("No admin users found!")
+        return
+    
+    st.markdown("---")
+    
+    # Display current admin users in a table format
+    st.subheader("📋 Current Admin Users")
+    
+    for idx, row in admin_df.iterrows():
+        with st.container():
+            # Show role with appropriate icon
+            role_icon = "👑" if row['role'] == 'super_admin' else "🛡️"
+            col1, col2, col3, col4 = st.columns([2, 2, 2, 1])
+            
+            with col1:
+                st.markdown(f"{role_icon} **{row['username'].upper()}**")
+            with col2:
+                st.write(f"Role: `{row['role']}`")
+            with col3:
+                st.write(f"Email: {row['email']}")
+            with col4:
+                # Delete button - but prevent deleting your own account
+                if row['username'] != st.session_state.user_name:
+                    if st.button(f"🗑️ Delete", key=f"del_admin_{row['id']}"):
+                        st.session_state.confirm_admin_delete = row['id']
+                        st.rerun()
+                else:
+                    st.info("Current user")
+            
+            # Show confirmation dialog for delete
+            if st.session_state.get('confirm_admin_delete') == row['id']:
+                st.warning(f"⚠️ Are you sure you want to delete admin user '{row['username']}'?")
+                col_yes, col_no = st.columns(2)
+                with col_yes:
+                    if st.button("✅ Yes, Delete", key=f"confirm_admin_yes_{row['id']}"):
+                        # Remove admin user
+                        admin_df = admin_df[admin_df['id'] != row['id']]
+                        if safe_write_excel(admin_df, ADMIN_EXCEL_FILE):
+                            st.session_state.confirm_admin_delete = None
+                            st.success(f"✅ Admin user '{row['username']}' has been deleted!")
+                            time.sleep(1)
+                            st.rerun()
+                with col_no:
+                    if st.button("❌ No, Cancel", key=f"confirm_admin_no_{row['id']}"):
+                        st.session_state.confirm_admin_delete = None
+                        st.rerun()
+            
+            # Password reset section (collapsible for each user)
+            with st.expander(f"🔐 Reset Password for {row['username']}"):
+                col_pass1, col_pass2 = st.columns(2)
+                with col_pass1:
+                    new_pass = st.text_input(f"New Password", type="password", key=f"new_{row['id']}")
+                with col_pass2:
+                    confirm = st.text_input(f"Confirm Password", type="password", key=f"confirm_{row['id']}")
+                
+                if st.button(f"Update Password", key=f"update_{row['id']}"):
+                    if new_pass and new_pass == confirm:
+                        if len(new_pass) >= 6:
+                            hashed = hash_password(new_pass)
+                            admin_df.loc[admin_df['id'] == row['id'], 'password'] = hashed
+                            if safe_write_excel(admin_df, ADMIN_EXCEL_FILE):
+                                st.success(f"✅ Password for {row['username']} updated successfully!")
+                                st.info(f"New password for {row['username']}: `{new_pass}`")
+                                time.sleep(2)
+                                st.rerun()
+                        else:
+                            st.error("Password must be at least 6 characters!")
+                    else:
+                        st.error("Passwords do not match or are empty!")
+            
+            st.markdown("---")
+    
+    # Add new admin user section
+    st.subheader("➕ Add New Admin User")
+    with st.expander("Create new admin account", expanded=False):
+        col1, col2 = st.columns(2)
+        with col1:
+            new_username = st.text_input("Username *")
+            new_email = st.text_input("Email *")
+            new_fullname = st.text_input("Full Name *")
+        with col2:
+            new_password = st.text_input("Password *", type="password")
+            confirm_password = st.text_input("Confirm Password *", type="password")
+            new_role = st.selectbox("Role", ["admin", "super_admin"])
+        
+        if st.button("➕ Create Admin User", key="create_admin"):
+            if new_username and new_email and new_fullname and new_password:
+                if new_password == confirm_password:
+                    if len(new_password) >= 6:
+                        # Check if username exists
+                        if new_username in admin_df['username'].values:
+                            st.error("Username already exists!")
+                        else:
+                            new_id = admin_df['id'].max() + 1 if not admin_df.empty else 1
+                            hashed = hash_password(new_password)
+                            new_admin = pd.DataFrame([{
+                                'id': new_id,
+                                'username': new_username,
+                                'password': hashed,
+                                'email': new_email,
+                                'full_name': new_fullname,
+                                'role': new_role
+                            }])
+                            admin_df = pd.concat([admin_df, new_admin], ignore_index=True)
+                            if safe_write_excel(admin_df, ADMIN_EXCEL_FILE):
+                                st.success(f"✅ Admin user '{new_username}' created successfully!")
+                                st.info(f"Login credentials:\nUsername: {new_username}\nPassword: {new_password}\nRole: {new_role}")
+                                time.sleep(2)
+                                st.rerun()
+                    else:
+                        st.error("Password must be at least 6 characters!")
+                else:
+                    st.error("Passwords do not match!")
+            else:
+                st.error("Please fill all required fields (*)!")
 def download_all_photos_to_local_folder(df):
     """Download all profile photos to local folder"""
     count = download_all_photos_to_folder(df)
@@ -1421,6 +1571,9 @@ def admin_all_staff():
     photo_count = len(df[df['image_path'] != ''])
     col6.metric("Has Photos", photo_count)
     
+    # Show current admin role
+    st.info(f"Logged in as: **{st.session_state.user_role.upper()}** - {st.session_state.user_name}")
+    
     st.markdown("---")
     search_col1, search_col2 = st.columns([3, 1])
     with search_col1:
@@ -1529,6 +1682,7 @@ def admin_all_staff():
                             st.rerun()
             
             else:
+                # View Mode
                 col1, col2, col3 = st.columns([2, 1, 1])
                 
                 with col1:
@@ -1655,33 +1809,41 @@ def admin_all_staff():
                             st.markdown(href, unsafe_allow_html=True)
                 
                 with col_btn6:
-                    delete_key = f"delete_btn_{staff_id}"
-                    if st.button(f"🗑️ Delete", key=delete_key):
-                        st.session_state.confirm_delete = staff_id
-                        st.rerun()
-                    
-                    if st.session_state.confirm_delete == staff_id:
-                        st.warning(f"⚠️ Are you sure you want to delete {row['full_name']}?")
-                        col_confirm1, col_confirm2 = st.columns(2)
-                        with col_confirm1:
-                            if st.button("✅ Yes, Delete", key=f"confirm_yes_{staff_id}"):
-                                for path in [row['image_path'], row['signature_path'], row['signature_bg_removed_path']]:
-                                    if is_valid_path(path):
-                                        try:
-                                            os.remove(path)
-                                        except:
-                                            pass
-                                df_full = safe_read_excel(STAFF_EXCEL_FILE)
-                                df_full = df_full[df_full['id'] != staff_id]
-                                if safe_write_excel(df_full, STAFF_EXCEL_FILE):
+                    # Delete button - ONLY visible to Super Admin
+                    if st.session_state.user_role == 'super_admin':
+                        delete_key = f"delete_btn_{staff_id}"
+                        if st.button(f"🗑️ Delete Staff", key=delete_key):
+                            st.session_state.confirm_delete = staff_id
+                            st.rerun()
+                        
+                        # Show confirmation dialog
+                        if st.session_state.confirm_delete == staff_id:
+                            st.warning(f"⚠️ Are you sure you want to delete {row['full_name']}?")
+                            col_confirm1, col_confirm2 = st.columns(2)
+                            with col_confirm1:
+                                if st.button("✅ Yes, Delete", key=f"confirm_yes_{staff_id}"):
+                                    # Delete image files
+                                    for path in [row['image_path'], row['signature_path'], row['signature_bg_removed_path']]:
+                                        if is_valid_path(path):
+                                            try:
+                                                os.remove(path)
+                                            except:
+                                                pass
+                                    # Remove from dataframe
+                                    df_full = safe_read_excel(STAFF_EXCEL_FILE)
+                                    df_full = df_full[df_full['id'] != staff_id]
+                                    if safe_write_excel(df_full, STAFF_EXCEL_FILE):
+                                        st.session_state.confirm_delete = None
+                                        st.success(f"✅ Deleted {row['full_name']} successfully!")
+                                        time.sleep(1)
+                                        st.rerun()
+                            with col_confirm2:
+                                if st.button("❌ No, Cancel", key=f"confirm_no_{staff_id}"):
                                     st.session_state.confirm_delete = None
-                                    st.success(f"✅ Deleted {row['full_name']} successfully!")
-                                    time.sleep(1)
                                     st.rerun()
-                        with col_confirm2:
-                            if st.button("❌ No, Cancel", key=f"confirm_no_{staff_id}"):
-                                st.session_state.confirm_delete = None
-                                st.rerun()
+                    else:
+                        st.info("🔒 Delete requires Super Admin role")
+
 
 # ==================== MAIN ====================
 def main():
@@ -1689,17 +1851,25 @@ def main():
     
     if st.session_state.logged_in:
         if st.session_state.user_type == "admin":
-            st.sidebar.write(f"**Admin:** {st.session_state.user_name}")
+            # Display role in sidebar
+            role_icon = "👑" if st.session_state.user_role == 'super_admin' else "🛡️"
+            st.sidebar.write(f"{role_icon} **{st.session_state.user_name}** ({st.session_state.user_role})")
             st.sidebar.markdown("---")
             
-            page = st.sidebar.radio("Navigation", ["All Staff"])
+            # Only show Admin Settings to Super Admin
+            if st.session_state.user_role == 'super_admin':
+                page = st.sidebar.radio("Navigation", ["All Staff", "Admin Settings"])
+            else:
+                page = st.sidebar.radio("Navigation", ["All Staff"])
             
             if page == "All Staff":
                 admin_all_staff()
+            elif page == "Admin Settings":
+                admin_password_manager()
             
             st.sidebar.markdown("---")
             if st.sidebar.button("🚪 Logout", use_container_width=True, key="admin_logout"):
-                for key in ['logged_in', 'user_type', 'user_name', 'stop_processing', 'processing_active', 'edit_mode', 'editing_staff_id', 'confirm_delete', 'show_signature_remover']:
+                for key in ['logged_in', 'user_type', 'user_name', 'stop_processing', 'processing_active', 'edit_mode', 'editing_staff_id', 'confirm_delete', 'show_signature_remover', 'user_role']:
                     if key in st.session_state:
                         del st.session_state[key]
                 st.rerun()
