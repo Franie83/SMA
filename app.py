@@ -13,16 +13,6 @@ import time
 import numpy as np
 import logging
 import shutil
-try:
-    from rembg import remove
-    REMBG_AVAILABLE = True
-except (ImportError, ModuleNotFoundError, Exception) as e:
-    REMBG_AVAILABLE = False
-    st.warning("Advanced background removal is not available in this environment. Using basic mode.")
-    
-    # Define a dummy remove function
-    def remove(x):
-        return x
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
