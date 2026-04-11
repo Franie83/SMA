@@ -1,0 +1,17 @@
+__pycache__/ 
+*.pyc 
+*.db 
+*.sqlite 
+*.sqlite3 
+instance/ 
+uploads/staff_images/* 
+uploads/staff_signatures/* 
+uploads/staff_signatures_clean/* 
+!uploads/staff_images/.gitkeep 
+!uploads/staff_signatures/.gitkeep 
+!uploads/staff_signatures_clean/.gitkeep 
+!instance/.gitkeep 
+temp/ 
+.env 
+.vscode/ 
+.idea/ 

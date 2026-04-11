@@ -1,0 +1,570 @@
+{% extends "base.html" %}
+
+{% block title %}Register{% endblock %}
+
+{% block extra_css %}
+<style>
+    .camera-section {
+        border: 2px dashed #ccc;
+        border-radius: 10px;
+        padding: 20px;
+        text-align: center;
+        margin-bottom: 20px;
+    }
+    .camera-preview {
+        max-width: 100%;
+        margin-top: 10px;
+        border-radius: 10px;
+    }
+    .capture-buttons {
+        margin-top: 15px;
+    }
+    .photo-preview {
+        max-width: 200px;
+        max-height: 200px;
+        margin: 10px auto;
+        display: block;
+        border-radius: 10px;
+    }
+    .signature-preview {
+        max-width: 300px;
+        max-height: 150px;
+        margin: 10px auto;
+        display: block;
+        border: 1px solid #ddd;
+    }
+    .canvas-draw {
+        border: 2px solid #333;
+        border-radius: 5px;
+        cursor: crosshair;
+        margin: 10px auto;
+        display: block;
+        background-color: white;
+    }
+    .btn-camera {
+        background-color: #4CAF50;
+        color: white;
+        margin: 5px;
+    }
+    .btn-clear {
+        background-color: #f44336;
+        color: white;
+        margin: 5px;
+    }
+    .required-field::after {
+        content: " *";
+        color: red;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0"><i class="fas fa-user-plus"></i> Staff Registration</h4>
+            </div>
+            <div class="card-body">
+                <form method="POST" enctype="multipart/form-data" id="registrationForm">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label required-field">Full Name</label>
+                            <input type="text" name="full_name" class="form-control" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label required-field">Email</label>
+                            <input type="email" name="email" class="form-control" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label required-field">Phone Number</label>
+                            <input type="text" name="phone" class="form-control" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Ministry</label>
+                            <input type="text" name="ministry" class="form-control">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Department</label>
+                            <input type="text" name="department" class="form-control">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Designation</label>
+                            <input type="text" name="designation" class="form-control">
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    <h5 class="mb-3"><i class="fas fa-camera"></i> Profile Photo Capture</h5>
+                    
+                    <!-- Photo Capture Options -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="camera-section">
+                                <h6><i class="fas fa-camera"></i> Take Photo with Camera</h6>
+                                <button type="button" class="btn btn-success btn-sm" onclick="startPhotoCamera()">
+                                    <i class="fas fa-camera"></i> Open Camera
+                                </button>
+                                <div id="photoCameraContainer" style="display: none;">
+                                    <video id="photoVideo" class="camera-preview" width="100%" autoplay></video>
+                                    <div class="capture-buttons">
+                                        <button type="button" class="btn btn-primary btn-sm" onclick="capturePhoto()">
+                                            <i class="fas fa-camera"></i> Capture
+                                        </button>
+                                        <button type="button" class="btn btn-danger btn-sm" onclick="stopPhotoCamera()">
+                                            <i class="fas fa-stop"></i> Stop
+                                        </button>
+                                    </div>
+                                </div>
+                                <canvas id="photoCanvas" style="display: none;"></canvas>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="camera-section">
+                                <h6><i class="fas fa-upload"></i> Or Upload Photo</h6>
+                                <input type="file" name="photo" class="form-control" accept="image/*" id="photoUpload">
+                                <small class="text-muted">Supported formats: JPG, PNG, GIF (Max 5MB)</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Photo Preview -->
+                    <div id="photoPreviewSection" style="display: none;">
+                        <label class="form-label">Photo Preview:</label>
+                        <img id="photoPreview" class="photo-preview" src="">
+                        <button type="button" class="btn btn-warning btn-sm" onclick="clearPhoto()">
+                            <i class="fas fa-trash-alt"></i> Clear Photo
+                        </button>
+                    </div>
+                    <input type="hidden" name="photo_data" id="photoData">
+                    
+                    <hr>
+                    <h5 class="mb-3"><i class="fas fa-signature"></i> Signature Capture</h5>
+                    
+                    <!-- Signature Capture Options -->
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="camera-section">
+                                <h6><i class="fas fa-camera"></i> Capture Signature</h6>
+                                <button type="button" class="btn btn-success btn-sm" onclick="startSignatureCamera()">
+                                    <i class="fas fa-camera"></i> Open Camera
+                                </button>
+                                <div id="signatureCameraContainer" style="display: none;">
+                                    <video id="signatureVideo" class="camera-preview" width="100%" autoplay></video>
+                                    <div class="capture-buttons">
+                                        <button type="button" class="btn btn-primary btn-sm" onclick="captureSignature()">
+                                            <i class="fas fa-camera"></i> Capture
+                                        </button>
+                                        <button type="button" class="btn btn-danger btn-sm" onclick="stopSignatureCamera()">
+                                            <i class="fas fa-stop"></i> Stop
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="camera-section">
+                                <h6><i class="fas fa-draw-polygon"></i> Draw Signature</h6>
+                                <button type="button" class="btn btn-info btn-sm" onclick="openDrawCanvas()">
+                                    <i class="fas fa-pencil-alt"></i> Draw Signature
+                                </button>
+                                <div id="drawCanvasContainer" style="display: none;">
+                                    <canvas id="signatureCanvas" class="canvas-draw" width="400" height="200"></canvas>
+                                    <div class="capture-buttons">
+                                        <button type="button" class="btn btn-primary btn-sm" onclick="saveDrawing()">
+                                            <i class="fas fa-save"></i> Save
+                                        </button>
+                                        <button type="button" class="btn btn-warning btn-sm" onclick="clearDrawing()">
+                                            <i class="fas fa-eraser"></i> Clear
+                                        </button>
+                                        <button type="button" class="btn btn-danger btn-sm" onclick="closeDrawCanvas()">
+                                            <i class="fas fa-times"></i> Close
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="camera-section">
+                                <h6><i class="fas fa-upload"></i> Or Upload Signature</h6>
+                                <input type="file" name="signature" class="form-control" accept="image/*" id="signatureUpload">
+                                <small class="text-muted">Supported formats: JPG, PNG (Max 2MB)</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Signature Preview -->
+                    <div id="signaturePreviewSection" style="display: none;">
+                        <label class="form-label">Signature Preview:</label>
+                        <img id="signaturePreview" class="signature-preview" src="">
+                        <button type="button" class="btn btn-warning btn-sm" onclick="clearSignature()">
+                            <i class="fas fa-trash-alt"></i> Clear Signature
+                        </button>
+                    </div>
+                    <input type="hidden" name="signature_data" id="signatureData">
+                    
+                    <hr>
+                    
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> 
+                        <strong>Note:</strong> After registration, an administrator will activate your account and provide login credentials via email.
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary btn-lg w-100">
+                        <i class="fas fa-paper-plane"></i> Submit Registration
+                    </button>
+                </form>
+                
+                <hr>
+                
+                <p class="text-center mb-0">
+                    <i class="fas fa-user-check"></i> Already registered? 
+                    <a href="{{ url_for('staff_login') }}" class="btn btn-link">Login here</a>
+                </p>
+                <p class="text-center text-muted small mt-2">
+                    <i class="fas fa-shield-alt"></i> Your information is secure and will only be used for official purposes
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Photo Camera Variables
+    let photoStream = null;
+    let photoVideo = null;
+    let photoCanvas = null;
+    
+    // Signature Camera Variables
+    let signatureStream = null;
+    let signatureVideo = null;
+    
+    // Drawing Variables
+    let drawing = false;
+    let ctx = null;
+    let signatureCanvas = null;
+    
+    // Photo Camera Functions
+    function startPhotoCamera() {
+        const container = document.getElementById('photoCameraContainer');
+        const video = document.getElementById('photoVideo');
+        
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+            navigator.mediaDevices.getUserMedia({ video: true })
+                .then(function(stream) {
+                    photoStream = stream;
+                    video.srcObject = stream;
+                    video.play();
+                    container.style.display = 'block';
+                })
+                .catch(function(error) {
+                    alert("Could not access camera: " + error.message + "\nPlease ensure you have granted camera permissions.");
+                });
+        } else {
+            alert("Camera not supported in this browser");
+        }
+    }
+    
+    function capturePhoto() {
+        const video = document.getElementById('photoVideo');
+        const canvas = document.getElementById('photoCanvas');
+        const context = canvas.getContext('2d');
+        
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        const imageData = canvas.toDataURL('image/jpeg', 0.8);
+        document.getElementById('photoData').value = imageData;
+        
+        // Show preview
+        const preview = document.getElementById('photoPreview');
+        preview.src = imageData;
+        document.getElementById('photoPreviewSection').style.display = 'block';
+        
+        stopPhotoCamera();
+        alert("Photo captured successfully!");
+    }
+    
+    function stopPhotoCamera() {
+        if (photoStream) {
+            photoStream.getTracks().forEach(track => track.stop());
+            photoStream = null;
+        }
+        document.getElementById('photoCameraContainer').style.display = 'none';
+    }
+    
+    function clearPhoto() {
+        document.getElementById('photoData').value = '';
+        document.getElementById('photoPreviewSection').style.display = 'none';
+        document.getElementById('photoUpload').value = '';
+    }
+    
+    // Signature Camera Functions
+    function startSignatureCamera() {
+        const container = document.getElementById('signatureCameraContainer');
+        const video = document.getElementById('signatureVideo');
+        
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+            navigator.mediaDevices.getUserMedia({ video: true })
+                .then(function(stream) {
+                    signatureStream = stream;
+                    video.srcObject = stream;
+                    video.play();
+                    container.style.display = 'block';
+                })
+                .catch(function(error) {
+                    alert("Could not access camera: " + error.message);
+                });
+        } else {
+            alert("Camera not supported in this browser");
+        }
+    }
+    
+    function captureSignature() {
+        const video = document.getElementById('signatureVideo');
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        const imageData = canvas.toDataURL('image/png');
+        document.getElementById('signatureData').value = imageData;
+        
+        // Show preview
+        const preview = document.getElementById('signaturePreview');
+        preview.src = imageData;
+        document.getElementById('signaturePreviewSection').style.display = 'block';
+        
+        stopSignatureCamera();
+        alert("Signature captured successfully!");
+    }
+    
+    function stopSignatureCamera() {
+        if (signatureStream) {
+            signatureStream.getTracks().forEach(track => track.stop());
+            signatureStream = null;
+        }
+        document.getElementById('signatureCameraContainer').style.display = 'none';
+    }
+    
+    // Drawing Functions
+    function openDrawCanvas() {
+        const container = document.getElementById('drawCanvasContainer');
+        container.style.display = 'block';
+        
+        if (!signatureCanvas) {
+            signatureCanvas = document.getElementById('signatureCanvas');
+            ctx = signatureCanvas.getContext('2d');
+            ctx.fillStyle = 'white';
+            ctx.fillRect(0, 0, signatureCanvas.width, signatureCanvas.height);
+            ctx.strokeStyle = 'black';
+            ctx.lineWidth = 2;
+            ctx.lineCap = 'round';
+            
+            // Drawing events
+            signatureCanvas.addEventListener('mousedown', startDrawing);
+            signatureCanvas.addEventListener('mousemove', draw);
+            signatureCanvas.addEventListener('mouseup', stopDrawing);
+            signatureCanvas.addEventListener('mouseleave', stopDrawing);
+            
+            // Touch events for mobile
+            signatureCanvas.addEventListener('touchstart', startDrawingTouch);
+            signatureCanvas.addEventListener('touchmove', drawTouch);
+            signatureCanvas.addEventListener('touchend', stopDrawing);
+        }
+    }
+    
+    function startDrawing(e) {
+        drawing = true;
+        ctx.beginPath();
+        ctx.moveTo(e.offsetX, e.offsetY);
+    }
+    
+    function draw(e) {
+        if (!drawing) return;
+        ctx.lineTo(e.offsetX, e.offsetY);
+        ctx.stroke();
+    }
+    
+    function stopDrawing() {
+        drawing = false;
+        ctx.beginPath();
+    }
+    
+    function startDrawingTouch(e) {
+        e.preventDefault();
+        const rect = signatureCanvas.getBoundingClientRect();
+        const x = e.touches[0].clientX - rect.left;
+        const y = e.touches[0].clientY - rect.top;
+        drawing = true;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+    }
+    
+    function drawTouch(e) {
+        e.preventDefault();
+        if (!drawing) return;
+        const rect = signatureCanvas.getBoundingClientRect();
+        const x = e.touches[0].clientX - rect.left;
+        const y = e.touches[0].clientY - rect.top;
+        ctx.lineTo(x, y);
+        ctx.stroke();
+    }
+    
+    function saveDrawing() {
+        if (!ctx) return;
+        
+        const imageData = signatureCanvas.toDataURL('image/png');
+        document.getElementById('signatureData').value = imageData;
+        
+        const preview = document.getElementById('signaturePreview');
+        preview.src = imageData;
+        document.getElementById('signaturePreviewSection').style.display = 'block';
+        
+        closeDrawCanvas();
+        alert("Signature saved successfully!");
+    }
+    
+    function clearDrawing() {
+        if (!ctx) return;
+        
+        ctx.fillStyle = 'white';
+        ctx.fillRect(0, 0, signatureCanvas.width, signatureCanvas.height);
+        ctx.fillStyle = 'black';
+    }
+    
+    function closeDrawCanvas() {
+        document.getElementById('drawCanvasContainer').style.display = 'none';
+    }
+    
+    function clearSignature() {
+        document.getElementById('signatureData').value = '';
+        document.getElementById('signaturePreviewSection').style.display = 'none';
+        document.getElementById('signatureUpload').value = '';
+    }
+    
+    // File upload handlers
+    document.getElementById('photoUpload').addEventListener('change', function(e) {
+        if (e.target.files && e.target.files[0]) {
+            const file = e.target.files[0];
+            
+            // Validate file size (5MB max)
+            if (file.size > 5 * 1024 * 1024) {
+                alert("File size too large! Maximum 5MB allowed.");
+                this.value = '';
+                return;
+            }
+            
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const preview = document.getElementById('photoPreview');
+                preview.src = event.target.result;
+                document.getElementById('photoPreviewSection').style.display = 'block';
+                
+                // Also store as data URL
+                document.getElementById('photoData').value = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+    
+    document.getElementById('signatureUpload').addEventListener('change', function(e) {
+        if (e.target.files && e.target.files[0]) {
+            const file = e.target.files[0];
+            
+            // Validate file size (2MB max)
+            if (file.size > 2 * 1024 * 1024) {
+                alert("File size too large! Maximum 2MB allowed.");
+                this.value = '';
+                return;
+            }
+            
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const preview = document.getElementById('signaturePreview');
+                preview.src = event.target.result;
+                document.getElementById('signaturePreviewSection').style.display = 'block';
+                
+                // Also store as data URL
+                document.getElementById('signatureData').value = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+    
+    // Form validation before submission
+    document.getElementById('registrationForm').addEventListener('submit', function(e) {
+        const fullName = document.querySelector('[name="full_name"]').value;
+        const email = document.querySelector('[name="email"]').value;
+        const phone = document.querySelector('[name="phone"]').value;
+        
+        if (!fullName || !email || !phone) {
+            e.preventDefault();
+            alert("Please fill in all required fields!");
+            return false;
+        }
+        
+        // Email validation
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            e.preventDefault();
+            alert("Please enter a valid email address!");
+            return false;
+        }
+        
+        // Phone validation (basic)
+        if (phone.length < 10) {
+            e.preventDefault();
+            alert("Please enter a valid phone number!");
+            return false;
+        }
+        
+        const photoData = document.getElementById('photoData').value;
+        const signatureData = document.getElementById('signatureData').value;
+        
+        if (photoData && photoData.startsWith('data:image')) {
+            // Convert data URL to Blob and append to form
+            const blob = dataURLToBlob(photoData);
+            const file = new File([blob], "camera_photo.png", { type: "image/png" });
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(file);
+            document.getElementById('photoUpload').files = dataTransfer.files;
+        }
+        
+        if (signatureData && signatureData.startsWith('data:image')) {
+            const blob = dataURLToBlob(signatureData);
+            const file = new File([blob], "captured_signature.png", { type: "image/png" });
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(file);
+            document.getElementById('signatureUpload').files = dataTransfer.files;
+        }
+    });
+    
+    function dataURLToBlob(dataURL) {
+        const parts = dataURL.split(';base64,');
+        const contentType = parts[0].split(':')[1];
+        const raw = window.atob(parts[1]);
+        const rawLength = raw.length;
+        const uInt8Array = new Uint8Array(rawLength);
+        
+        for (let i = 0; i < rawLength; ++i) {
+            uInt8Array[i] = raw.charCodeAt(i);
+        }
+        
+        return new Blob([uInt8Array], { type: contentType });
+    }
+    
+    // Clean up on page unload
+    window.addEventListener('beforeunload', function() {
+        if (photoStream) {
+            photoStream.getTracks().forEach(track => track.stop());
+        }
+        if (signatureStream) {
+            signatureStream.getTracks().forEach(track => track.stop());
+        }
+    });
+</script>
+{% endblock %}

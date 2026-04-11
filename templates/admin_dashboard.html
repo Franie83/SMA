@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <h2 class="mb-4">Admin Dashboard</h2>
+        <p class="text-muted">Welcome back, {{ current_user.full_name }} ({{ session.user_role }})</p>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <h5 class="card-title">Total Staff</h5>
+                <h2 class="display-4">{{ total_staff }}</h2>
+                <a href="{{ url_for('admin_staff') }}" class="text-white">View All →</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <h5 class="card-title">Administrators</h5>
+                <h2 class="display-4">{{ total_admins }}</h2>
+                <a href="{{ url_for('manage_admins') }}" class="text-white">Manage →</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <h5 class="card-title">Quick Actions</h5>
+                <ul class="list-unstyled">
+                    <li><a href="{{ url_for('import_data') }}" class="text-white">Import Data</a></li>
+                    <li><a href="{{ url_for('signature_remover') }}" class="text-white">Remove Backgrounds</a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Recent Import History</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Records Imported</th>
+                                <th>Records Failed</th>
+                                <th>Imported By</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for log in recent_imports %}
+                            <tr>
+                                <td>{{ log.import_date.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td class="text-success">{{ log.records_imported }}</td>
+                                <td class="text-danger">{{ log.records_failed }}</td>
+                                <td>{{ log.imported_by }}</td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="4" class="text-center">No imports yet</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
